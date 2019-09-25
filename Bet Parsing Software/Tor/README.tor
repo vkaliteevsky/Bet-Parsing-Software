@@ -1,0 +1,25 @@
+::: Change ip using Tor class :::
+
+First add tor.py to your project.
+
+Use case is simple:
+from tor import Tor
+...
+
+def some_function(...):
+	tor = Tor()
+	# Open tor connection
+	tor.connect()
+	...do smth...
+	# Change ip address
+	tor.reconnect()
+	...do smth...
+	# Close tor connection
+	tor.disconnect() 
+
+P.S. Your should always close tor 
+     connection when you've 
+     finished your work
+
+With love,
+    SM

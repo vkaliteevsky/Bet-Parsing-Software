@@ -1,0 +1,19 @@
+/*
+* This is a proto file for google protobuf compiler protoc. It generates classes in Java, C++ and Python languages.
+* It is used as common representation of object Fork for all parts of kelembets project.
+*/
+
+/* Options for java compiler */
+option java_package = "client.proto";
+option java_outer_classname = "ForkBase";
+
+message Fork {
+	required int64 date = 1;
+	required string firstTeam = 2;
+	required string secondTeam = 3;
+	repeated int32 events = 4;
+	repeated int32 bookmakers = 5;
+	optional int32 outcomes = 6;
+	repeated double odds = 7;
+	repeated double yields = 8;
+}

@@ -1,0 +1,146 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from subprocess import Popen, PIPE
+import subprocess
+import datetime
+import time
+from datetime import timedelta
+import os
+import sys
+
+global_parser_names = ["bet365", "sbobet", "marathonbet", "whill"]
+
+# severity == 0 - lowest level
+# severity == 10 - highest level
+def ThrowError(severity, text):
+	print text
+	if severity == 10:
+		quit()
+
+# по имени букмекера name возвращает id парсера
+def parserId(name):
+	if name == "whill":
+		return 3
+	elif name == "marathonbet":
+		return 2
+	elif name == "sbobet":
+		return 1
+	elif name == "bet365":
+		return 0
+	else:
+		return -1
+
+# реализует вызов парсера с учетом их расположения в папках
+# input:
+#	parser_name - имя папки/парсера ("whill", "marathonbet", ...)
+#	params - параметры командной строки ["./main.py", "init"]
+def callParser(parser_name, params):
+	if os.path.exists(parser_name):
+		os.chdir(parser_name)
+		subprocess.call(params)
+		os.chdir("..")
+		return 0
+	return 1
+
+# запрашивает у парсера полную информацию о его состоянии
+# input:
+#	parser_name - {"whill", "bet365", etc.}
+# output:
+#	array of lines in state file
+def readState(parser_name):
+	os.chdir(parser_name)
+	process = Popen(["./main.py", "getState"], stdout=PIPE)
+	os.chdir("..")
+	dt_start = datetime.datetime.strptime(process.stdout.readline(), "%Y-%m-%d %H:%M:%S\n")
+	dt_end = datetime.datetime.strptime(process.stdout.readline(), "%Y-%m-%d %H:%M:%S\n")
+	num_line = int(process.stdout.readline())
+	return [dt_start, dt_end, num_line]
+
+def get(min_minutes, max_minutes, amount, bitmask, main_parser, output_file):
+	min_minutes = int(min_minutes)
+	max_minutes = int(max_minutes)
+	amount = int(amount)
+	bitmask = int(bitmask)
+	main_parser_id = parserId(main_parser)
+	if main_parser_id == -1:			# ошибка
+		ThrowError(10, "get : неверный параметр main_parser == " + str(main_parser) + " . Программа прервана")
+	
+	whill = ((bitmask >> 3) % 2 == 1)
+	marathonbet = ((bitmask >> 2) % 2 == 1)
+	sbobet = ((bitmask >> 1) % 2 == 1)
+	bet365 = ((bitmask % 2) == 1)
+	
+	query = global_parser_names	# очередность вызовов
+	callable = [bet365, sbobet, marathonbet, whill]		# можно ли вызывать соответствующий парсер
+	if not callable[main_parser_id]:		# главный парсер не может быть вызван
+		ThrowError(10, "get : главный парсер не может быть вызван.")
+	
+	query[0], query[main_parser_id] = query[main_parser_id], query[0]
+	callable[0], callable[main_parser_id] = callable[main_parser_id], callable[0]
+	main_parser_id = 0
+	
+	now = datetime.datetime.today()
+	dt_start, dt_end, start_line = readState(query[0])
+	delta_mins = (now - dt_end).total_seconds() / 60
+	if delta_mins >= 10:
+		for i in range(4):
+			if callable[i]:
+				callParser(query[i], ["./main.py", "init"])
+	#callParser(query[0], ["./main.py", "parseAll", min_minutes, max_minutes, amount])
+	lines = []
+	os.chdir(query[0])
+	process = Popen(["./main.py", "parseAll", str(min_minutes), str(max_minutes), str(amount)], stdout=PIPE)
+	os.chdir("..")
+	
+	dt_str = process.stdout.readline()
+	cmd1 = process.stdout.readline()
+	cmd2 = process.stdout.readline()
+	while dt_str != "" and dt_str != "\n":
+		lines.append([dt_str, cmd1, cmd2])
+		dt_str = process.stdout.readline()
+		cmd1 = process.stdout.readline()
+		cmd2 = process.stdout.readline()
+	print lines
+	for j in range(len(lines)):
+		#print lines[j][0]
+		#print lines[j][1]
+		#print lines[j][2]
+		i = 0
+		while i < 4:
+			if callable[i]:
+				callParser(query[i], ["./main.py", "parseMatch", lines[j][0], lines[j][1], lines[j][2]])
+			i += 1
+	return
+
+def dispetcher():
+	l = len(sys.argv)
+	if l == 1:
+		print "dispetcher() : Не хватает аргументов командной строки. Прервано."
+		return 1
+	cmd = sys.argv[1]
+	if cmd == "resetParsers":
+		for i in range(global_parser_names):
+			callParser(global_parser_names[i], ["./main.py", "reset"])
+	elif cmd == "reset":
+		parser_id_text = sys.argv[2]
+		parser_id = parserId(parser_id_text)
+		if parser_id == -1:			# неверное имя парсера
+			ThrowError(10, "Неверное имя парсера. Программа прервана.")
+		resp = callParser(parser_id_text, ["./main.py", "reset"])
+		if resp == -1:				# нет директории
+			ThrowError(10, "Не удалось обновить парсер " + parser_id_text + " .Не найдена директория.")
+	elif cmd == "get":
+		min_minutes = int(sys.argv[2])
+		max_minutes = int(sys.argv[3])
+		amount = int(sys.argv[4])
+		get(min_minutes, max_minutes, amount, 8, "whill", "output.txt")
+	else:
+		print "Введена несуществующая команда. Завершено."
+	return 0
+
+dispetcher()
+#p = Popen(["./test"], stdout=PIPE)
+#x = p.stdout.readline()
+#x = p.stdout.readline()
+#print x

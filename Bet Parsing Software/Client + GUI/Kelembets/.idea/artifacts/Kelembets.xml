@@ -1,0 +1,23 @@
+<component name="ArtifactManager">
+  <artifact type="javafx" name="Kelembets">
+    <output-path>$PROJECT_DIR$/out/artifacts/Kelembets</output-path>
+    <properties id="javafx-properties">
+      <options>
+        <option name="appClass" value="Main" />
+        <option name="description" value="" />
+        <option name="htmlParamFile" value="" />
+        <option name="paramFile" value="" />
+        <option name="title" value="" />
+        <option name="vendor" value="" />
+      </options>
+    </properties>
+    <root id="root">
+      <element id="archive" name="Kelembets.jar">
+        <element id="module-output" name="Kelembets" />
+        <element id="library" level="project" name="protobuf-java-2.6.0" />
+        <element id="library" level="project" name="junit-4.11" />
+        <element id="library" level="project" name="jide-oss-3.6.5" />
+      </element>
+    </root>
+  </artifact>
+</component>

@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from subprocess import Popen
+import subprocess
+import datetime
+import time
+from datetime import timedelta
+import os
+import sys
+
+def main():
+#	exit [datetime.datetime.today(), "hello world", 37]
+	#return ("hello", "lol", True)
+	return "xyz\nyzx"
+
+print main()

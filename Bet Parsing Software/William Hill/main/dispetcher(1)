@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from subprocess import Popen, PIPE
+import subprocess
+import datetime
+import time
+from datetime import timedelta
+import os
+import sys
+
+
+# severity == 0 - lowest level
+# severity == 10 - highest level
+def ThrowError(severity, text):
+	print text
+	if severity == 10:
+		quit()
+
+# по имени букмекера name возвращает id парсера
+def parserId(name):
+	if name == "whill":
+		return 3
+	elif name == "marathonbet":
+		return 2
+	elif name == "sbobet":
+		return 1
+	elif name == "bet365":
+		return 0
+	else:
+		return -1
+
+# реализует вызов парсера с учетом их расположения в папках
+# input:
+#	parser_name - имя папки/парсера ("whill", "marathonbet", ...)
+#	params - параметры командной строки ["./main.py", "init"]
+def callParser(parser_name, params):
+	os.chdir(parser_name)
+	subprocess.call(params)
+	os.chdir("..")
+
+def get(min_minutes, max_minutes, amount, bitmask, main_parser, output_file):
+	amount = int(amount)
+	bitmask = int(bitmask)
+	main_parser_id = parserId(main_parser)
+	if main_parser_id == -1:			# ошибка
+		ThrowError(10, "get : неверный параметр main_parser == " + str(main_parser) + " . Программа прервана")
+	
+	whill = ((bitmask >> 3) % 2 == 1)
+	marathonbet = ((bitmask >> 2) % 2 == 1)
+	sbobet = ((bitmask >> 1) % 2 == 1)
+	bet365 = ((bitmask % 2) == 1)
+	
+	query = ["bet365", "sbobet", "marathonbet", "whill"]	# очередность вызовов
+	callable = [bet365, sbobet, marathonbet, whill]		# можно ли вызывать соответствующий парсер
+	if not callable[main_parser_id]:		# главный парсер не может быть вызван
+		ThrowError(10, "get : главный парсер не может быть вызван.")
+	
+	query[0], query[main_parser_id] = query[main_parser_id], query[0]
+	callable[0], callable[main_parser_id] = callable[main_parser_id], callable[0]
+	main_parser_id = 0
+	
+	print query
+	print callable
+	for i in range(4):
+		if callable[i]:
+			callParser(query[i], ["./main.py", "init"])
+	quit()
+	#callParser(query[0], ["./main.py", "parseAll", min_minutes, max_minutes, amount])
+	lines = []
+	os.chdir(query[0])
+	process = Popen(["./main.py", "parseAll", min_minutes, max_minutes, amount], stdout=PIPE)
+	os.chdir("..")
+	quit()
+	dt_str = process.stdout.readline()
+	cmd1 = process.stdout.readline()
+	cmd2 = process.stdout.readline()
+	while dt_str != "":
+		lines.append([dt_str, cmd1, cmd2])
+		dt_str = process.stdout.readline()
+		cmd1 = process.stdout.readline()
+		cmd2 = process.stdout.readline()
+	for j in range(len(lines)):
+		i = 1
+		while i <= 4:
+			callParser(query[i], ["./main.py", "parseMatch", lines[j][0], lines[j][1], lines[j][2]])
+			i += 1
+	return
+
+get(5, 1000, 2, 8, "whill", "output.txt")
+#p = Popen(["./test"], stdout=PIPE)
+#x = p.stdout.readline()
+#x = p.stdout.readline()
+#print x
